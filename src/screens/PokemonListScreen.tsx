@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, SafeAreaView } from 'react-native';
-import { fetchOriginalPokemon } from './src/api/pokeapi';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
+import { fetchOriginalPokemon } from '../api/pokeapi';
 
-const App: React.FC = () => {
+const PokemonListScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     const [pokemonList, setPokemonList] = useState<{ name: string; url: string }[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -18,45 +18,40 @@ const App: React.FC = () => {
             }
         };
 
-        loadPokemon();
+        loadPokemon().then(r => console.log('end of api call'));
     }, []);
 
     if (loading) {
         return (
-            <SafeAreaView style={styles.container}>
+            <View style={styles.container}>
                 <Text>Loading Pokémon...</Text>
-            </SafeAreaView>
+            </View>
         );
     }
 
     return (
-        <SafeAreaView style={styles.container}>
-            <Text style={styles.title}>Original 150 Pokémon</Text>
+        <View style={styles.container}>
             <FlatList
                 data={pokemonList}
                 keyExtractor={(item) => item.name}
                 renderItem={({ item }) => (
-                    <View style={styles.card}>
+                    <TouchableOpacity
+                        style={styles.card}
+                        onPress={() => navigation.navigate('PokemonDetail', { name: item.name })}
+                    >
                         <Text style={styles.pokemonName}>{item.name}</Text>
-                    </View>
+                    </TouchableOpacity>
                 )}
             />
-        </SafeAreaView>
+        </View>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        marginTop: 16,
-        paddingHorizontal: 16,
+        padding: 16,
         backgroundColor: '#f0f0f0',
-    },
-    title: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        marginBottom: 16,
-        textAlign: 'center',
     },
     card: {
         backgroundColor: '#ffffff',
@@ -67,7 +62,7 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 4,
-        elevation: 3, // Adds a shadow effect on Android
+        elevation: 3,
     },
     pokemonName: {
         fontSize: 18,
@@ -75,4 +70,4 @@ const styles = StyleSheet.create({
     },
 });
 
-export default App;
+export default PokemonListScreen;
