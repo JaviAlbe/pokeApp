@@ -1,16 +1,23 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
-import { fetchOriginalPokemon } from '../api/pokeapi';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, TextInput, Button } from 'react-native';
+import { fetchAllPokemon } from '../api/pokeapi';
+import debounce from 'lodash/debounce';
 
 const PokemonListScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     const [pokemonList, setPokemonList] = useState<{ name: string; url: string }[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [filteredPokemonList, setFilteredPokemonList] = useState<{ name: string; url: string }[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [hasLoaded, setHasLoaded] = useState(false);
+    const [searchText, setSearchText] = useState('');
 
     useEffect(() => {
         const loadPokemon = async () => {
+            setLoading(true);
             try {
-                const data = await fetchOriginalPokemon();
+                const data = await fetchAllPokemon();
                 setPokemonList(data);
+                setFilteredPokemonList(data); // Initialize with the full list
+                setHasLoaded(true);
             } catch (error) {
                 console.error('Failed to load Pokémon:', error);
             } finally {
@@ -18,33 +25,62 @@ const PokemonListScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             }
         };
 
-        loadPokemon().then(r => console.log('end of api call'));
+        loadPokemon();
     }, []);
 
-    if (loading) {
-        return (
-            <View style={styles.container}>
-                <Text>Loading Pokémon...</Text>
-            </View>
-        );
-    }
+    // Debounced function to filter Pokémon
+    const debouncedFilter = useCallback(
+        debounce((text: string) => {
+            if (text.trim()) {
+                const filteredData = pokemonList.filter((pokemon) =>
+                    pokemon.name.toLowerCase().includes(text.toLowerCase().trim())
+                );
+                setFilteredPokemonList(filteredData);
+            } else {
+                // If search text is empty, reset to full list
+                setFilteredPokemonList(pokemonList);
+            }
+        }, 2000), // 2-second debounce delay
+        [pokemonList]
+    );
+
+    const handleSearch = (text: string) => {
+        setSearchText(text);
+        debouncedFilter(text);
+    };
 
     return (
         <View style={styles.container}>
-            <FlatList
-                data={pokemonList}
-                keyExtractor={(item) => item.name}
-                renderItem={({ item }) => (
-                    <TouchableOpacity
-                        style={styles.card}
-                        onPress={() => {
-                            navigation.navigate('PokemonDetail', { name: item.name })}
-                        }
-                    >
-                        <Text style={styles.pokemonName}>{item.name}</Text>
-                    </TouchableOpacity>
+            <View style={styles.topSection}>
+                <TextInput
+                    style={styles.searchInput}
+                    placeholder="Search Pokémon by name"
+                    value={searchText}
+                    onChangeText={handleSearch}
+                />
+                {!hasLoaded && (
+                    <Button title="Load Pokémon List" onPress={() => {}} disabled={loading} />
                 )}
-            />
+                {loading && <Text style={styles.loadingText}>Loading...</Text>}
+            </View>
+            <View style={styles.listSection}>
+                {hasLoaded && filteredPokemonList.length === 0 ? (
+                    <Text style={styles.noMatchesText}>No matches found</Text>
+                ) : (
+                    <FlatList
+                        data={filteredPokemonList}
+                        keyExtractor={(item) => item.name}
+                        renderItem={({ item }) => (
+                            <TouchableOpacity
+                                style={styles.card}
+                                onPress={() => navigation.navigate('PokemonDetail', { name: item.name })}
+                            >
+                                <Text style={styles.pokemonName}>{item.name}</Text>
+                            </TouchableOpacity>
+                        )}
+                    />
+                )}
+            </View>
         </View>
     );
 };
@@ -52,8 +88,25 @@ const PokemonListScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        padding: 16,
         backgroundColor: '#f0f0f0',
+    },
+    topSection: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 16,
+    },
+    listSection: {
+        flex: 2,
+        paddingHorizontal: 16,
+    },
+    searchInput: {
+        width: '100%',
+        padding: 12,
+        borderWidth: 1,
+        borderColor: '#ccc',
+        borderRadius: 8,
+        marginBottom: 16,
     },
     card: {
         backgroundColor: '#ffffff',
@@ -69,6 +122,18 @@ const styles = StyleSheet.create({
     pokemonName: {
         fontSize: 18,
         fontWeight: '500',
+    },
+    loadingText: {
+        textAlign: 'center',
+        marginTop: 16,
+        fontSize: 16,
+        color: '#888',
+    },
+    noMatchesText: {
+        textAlign: 'center',
+        fontSize: 16,
+        color: '#888',
+        marginTop: 16,
     },
 });
 
