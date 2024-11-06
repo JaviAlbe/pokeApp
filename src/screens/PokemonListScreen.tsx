@@ -37,7 +37,9 @@ const PokemonListScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 renderItem={({ item }) => (
                     <TouchableOpacity
                         style={styles.card}
-                        onPress={() => navigation.navigate('PokemonDetail', { name: item.name })}
+                        onPress={() => {
+                            navigation.navigate('PokemonDetail', { name: item.name })}
+                        }
                     >
                         <Text style={styles.pokemonName}>{item.name}</Text>
                     </TouchableOpacity>
