@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, TextInput, Button } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, TextInput, Button, Alert } from 'react-native';
 import { fetchAllPokemon } from '../api/pokeapi';
 import debounce from 'lodash/debounce';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const POKEMON_CACHE_KEY = 'POKEMON_LIST';
 
 const PokemonListScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     const [pokemonList, setPokemonList] = useState<{ name: string; url: string }[]>([]);
@@ -14,12 +17,27 @@ const PokemonListScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         const loadPokemon = async () => {
             setLoading(true);
             try {
-                const data = await fetchAllPokemon();
-                setPokemonList(data);
-                setFilteredPokemonList(data); // Initialize with the full list
-                setHasLoaded(true);
+                // Try to fetch from local cache first
+                const cachedPokemonList = await AsyncStorage.getItem(POKEMON_CACHE_KEY);
+                if (cachedPokemonList) {
+                    const parsedList = JSON.parse(cachedPokemonList);
+                    setPokemonList(parsedList);
+                    setFilteredPokemonList(parsedList);
+                    setHasLoaded(true);
+                    console.log('Loaded Pokémon list from cache');
+                } else {
+                    // Fetch from API if not in cache
+                    const data = await fetchAllPokemon();
+                    setPokemonList(data);
+                    setFilteredPokemonList(data);
+                    setHasLoaded(true);
+                    // Save to cache
+                    await AsyncStorage.setItem(POKEMON_CACHE_KEY, JSON.stringify(data));
+                    console.log('Fetched and cached Pokémon list from API');
+                }
             } catch (error) {
                 console.error('Failed to load Pokémon:', error);
+                Alert.alert('Error', 'Failed to load Pokémon. Please try again later.');
             } finally {
                 setLoading(false);
             }
@@ -58,9 +76,6 @@ const PokemonListScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                     value={searchText}
                     onChangeText={handleSearch}
                 />
-                {!hasLoaded && (
-                    <Button title="Load Pokémon List" onPress={() => {}} disabled={loading} />
-                )}
                 {loading && <Text style={styles.loadingText}>Loading...</Text>}
             </View>
             <View style={styles.listSection}>
